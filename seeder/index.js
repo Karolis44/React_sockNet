@@ -243,8 +243,8 @@ con.query(sql, (err) => {
 sql = `
     CREATE TABLE messages (
         id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        from_user_id int(10) UNSIGNED NOT NULL,
-        to_user_id int(10) UNSIGNED NOT NULL,
+        from_user_id int(10) UNSIGNED NOT NULL KEY,
+        to_user_id int(10) UNSIGNED NOT NULL KEY,
         content text NOT NULL,
         created_at date NOT NULL DEFAULT current_timestamp(),
         seen tinyint(1) UNSIGNED NOT NULL DEFAULT 0
@@ -279,7 +279,7 @@ con.query(sql, (err) => {
 sql = `
     CREATE TABLE sessions (
     id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    user_id int(10) UNSIGNED NOT NULL,
+    user_id int(10) UNSIGNED NOT NULL KEY,
     token char(32) NOT NULL,
     valid_until date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

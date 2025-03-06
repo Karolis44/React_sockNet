@@ -62,7 +62,7 @@ users.forEach((_, key) => {
                 endTime = endTime.setMinutes(endTime.getMinutes() - faker.number.int({ min: 1, max: 100 }));
 
                 endTime = new Date(endTime);
-            
+
                 messages.push({
                     ...createMessage(),
                     toUserId: owner === 'to' ? toUserId : fromUserId,
@@ -243,8 +243,8 @@ con.query(sql, (err) => {
 sql = `
     CREATE TABLE messages (
         id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-        from_user_id int(10) UNSIGNED NOT NULL KEY,
-        to_user_id int(10) UNSIGNED NOT NULL KEY,
+        from_user_id int(10) UNSIGNED NOT NULL,
+        to_user_id int(10) UNSIGNED NOT NULL,
         content text NOT NULL,
         created_at date NOT NULL DEFAULT current_timestamp(),
         seen tinyint(1) UNSIGNED NOT NULL DEFAULT 0
@@ -279,7 +279,7 @@ con.query(sql, (err) => {
 sql = `
     CREATE TABLE sessions (
     id int(10) UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    user_id int(10) UNSIGNED NOT NULL KEY,
+    user_id int(10) UNSIGNED NOT NULL,
     token char(32) NOT NULL,
     valid_until date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -364,7 +364,67 @@ con.query(sql, [comments.map(comment => [comment.postId, comment.userId, comment
 });
 
 
+sql = `
+    ALTER TABLE comments
+    ADD CONSTRAINT comments_ibfk_1 FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    ADD CONSTRAINT comments_ibfk_2 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL;
+`;
+con.query(sql, (err) => {
+    if (err) {
+        console.log('Comments table alter error', err);
+    } else {
+        console.log('Comments table was altered');
+    }
+});
 
+sql = `
+    ALTER TABLE images
+    ADD CONSTRAINT images_ibfk_1 FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE;
+`;
+con.query(sql, (err) => {
+    if (err) {
+        console.log('Images table alter error', err);
+    } else {
+        console.log('Images table was altered');
+    }
+});
+
+sql = `
+    ALTER TABLE messages
+    ADD CONSTRAINT messages_ibfk_1 FOREIGN KEY (from_user_id) REFERENCES users (id) ON DELETE CASCADE,
+    ADD CONSTRAINT messages_ibfk_2 FOREIGN KEY (to_user_id) REFERENCES users (id) ON DELETE CASCADE;
+`;
+con.query(sql, (err) => {
+    if (err) {
+        console.log('Messages table alter error', err);
+    } else {
+        console.log('Messages table was altered');
+    }
+});
+
+sql = `
+ALTER TABLE posts
+  ADD CONSTRAINT posts_ibfk_1 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL;
+`;
+con.query(sql, (err) => {
+    if (err) {
+        console.log('Posts table alter error', err);
+    } else {
+        console.log('Posts table was altered');
+    }
+});
+
+sql = `
+ALTER TABLE sessions
+  ADD CONSTRAINT sessions_ibfk_1 FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE;
+`;
+con.query(sql, (err) => {
+    if (err) {
+        console.log('Sessions table alter error', err);
+    } else {
+        console.log('Sessions table was altered');
+    }
+});
 
 
 con.end();

@@ -1,5 +1,5 @@
-import PostsList from '../Components/PostsList';
-import UsersList from '../Components/UsersList';
+import PostsList from '../Components/Posts/PostsList';
+import UsersList from '../Components/Users/UsersList';
 
 export default function Home() {
 
@@ -7,6 +7,7 @@ export default function Home() {
         <section className="main">
            <UsersList />
            <PostsList />
+           {console.log('HOME List rendered')}
         </section>
     );
 }

@@ -23,6 +23,7 @@ app.use(cors(
 
 app.use(express.json());
 
+
 const con = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -40,6 +41,12 @@ con.connect(err => {
 });
 
 const error500 = (res, err) => res.status(500).json(err);
+const error400 = (res, customCode = 0) => res.status(400).json({
+    msg: { type: 'error', text: 'Invalid request. Code: ' + customCode }
+});
+const error401 = (res, message) => res.status(401).json({
+    msg: { type: 'error', text: message }
+});
 
 // Identifikacija - pagal numatytą ID identifikuojam vartototoją pvz Ragana-su-šluota
 // Autorizacija - pagal vartotojo identifikuotą ID, vartotojui suteikiamos teisės pvz gali balsuoti, pirkti cigaretes
@@ -59,6 +66,7 @@ app.use((req, res, next) => {
     `;
     con.query(sql, [token], (err, result) => {
         if (err) return error500(res, err);
+
         if (result.length === 0) {
             req.user = {
                 role: 'guest',
@@ -82,12 +90,10 @@ app.post('/login', (req, res) => {
     con.query(sql, [name, md5(password)], (err, result) => {
         if (err) return error500(res, err);
         if (result.length === 0) {
-            res.status(401).send({
-                msg: {type: 'error', text: 'Invalid user name or password'}
-            });
+            error401(res, 'Invalid user name or password');
             return;
         }
-        
+
         const token = md5(v4());
         const userId = result[0].id;
         let time = new Date();
@@ -103,7 +109,7 @@ app.post('/login', (req, res) => {
             if (err) return error500(res, err);
             res.cookie('sock-net-token', token, { httpOnly: true, SameSite: 'none' });
             res.status(200).json({
-                msg: {type: 'success', text: `Hello, ${result[0].name}! How are you?`},
+                msg: { type: 'success', text: `Hello, ${result[0].name}! How are you?` },
                 user: {
                     role: result[0].role,
                     name: result[0].name,
@@ -135,7 +141,7 @@ app.post('/logout', (req, res) => {
             if (err) return error500(res, err);
             res.clearCookie('sock-net-token');
             res.status(200).json({
-                msg: {type: 'success', text: `Bye bye!`},
+                msg: { type: 'success', text: `Bye bye!` },
                 user: {
                     role: 'guest',
                     name: 'Guest',
@@ -181,7 +187,7 @@ app.get('/posts/load-posts/:page', (req, res) => {
 
     setTimeout(_ => {
 
-    const sql = `
+        const sql = `
         SELECT p.id, p.content, p.created_at AS postDate, p.votes, u.name, u.avatar, i.url AS mainImage
         FROM posts AS p
         INNER JOIN users AS u
@@ -192,23 +198,107 @@ app.get('/posts/load-posts/:page', (req, res) => {
         LIMIT ? OFFSET ?
     `;
 
-    con.query(sql, [postsPerPage, (page - 1) * postsPerPage], (err, result) => {
-        if (err) return error500(res, err);
+        con.query(sql, [postsPerPage, (page - 1) * postsPerPage], (err, result) => {
+            if (err) return error500(res, err);
 
-        result = result.map(r => ({ ...r, votes: JSON.parse(r.votes) }));
+            result = result.map(r => ({ ...r, votes: JSON.parse(r.votes) }));
 
-        res.json({
-            success: true,
-            db: result
+            res.json({
+                success: true,
+                db: result
+            });
+
         });
-
-    });
 
     }, 1500);
 });
 
 
+app.post('/posts/update/:id', (req, res) => {
 
+    if (!req.user.id) {
+        error401(res, 'Please login first.');
+        return;
+    }
+
+    const postID = parseInt(req.params.id); // postID
+    const { type, payload } = req.body;
+
+    const sql1 = 'SELECT * FROM posts WHERE id = ?';
+    con.query(sql1, [postID], (err, result1) => {
+        if (err) return error500(res, err);
+        if (!result1.length) return error400(res, 554); // 554 is lubu paimtas
+
+        if ('up_vote' === type || 'down_vote' === type) {
+
+            const votes = JSON.parse(result1[0].votes);
+            const up = new Set(votes.l);
+            const down = new Set(votes.d);
+            const userID = req.user.id; //userID
+
+            if ('up_vote' === type) {
+                if (up.has(userID)) {
+                    up.delete(userID);
+                } else if (down.has(userID)) {
+                    down.delete(userID);
+                    up.add(userID);
+                } else {
+                    up.add(userID);
+                }
+            }
+            if ('down_vote' === type) {
+                if (down.has(userID)) {
+                    down.delete(userID);
+                } else if (up.has(userID)) {
+                    up.delete(userID);
+                    down.add(userID);
+                } else {
+                    down.add(userID);
+                }
+            }
+            let newVotes = { l: [...up], d: [...down] };
+            newVotes = JSON.stringify(newVotes);
+            const sql2 = `
+                UPDATE posts
+                SET votes = ?
+                WHERE id = ?
+            `;
+            con.query(sql2, [newVotes, postID], (err) => {
+                if (err) return error500(res, err);
+                res.status(200).json({
+                    msg: { type: 'success', text: `Thank you for your vote. You are the best!` },
+                });
+                return;
+            });
+        }
+
+    });
+});
+
+
+// COMMENTS/***** */
+
+app.get('/comments/for-post/:id', (req, res) => {
+
+    const postID = req.params.id;
+
+    const sql = `
+        SELECT *
+        FROM comments
+        WHERE post_id = ?
+    `;
+
+    con.query(sql, [postID], (err, result) => {
+        if (err) return error500(res, err);
+
+        res.json({
+            success: true,
+            c: result
+        });
+
+    });
+
+});
 
 
 

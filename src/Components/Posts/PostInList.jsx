@@ -1,8 +1,59 @@
+import { useContext } from 'react';
+import Data from '../../Contexts/Data';
+import Auth from '../../Contexts/Auth';
+import * as A from '../../Constants/actions';
+
 export default function PostInList({ post }) {
+
+    const { dispatchPosts, setPostUpdate, getPostCommentsFromServer } = useContext(Data);
+    const { user } = useContext(Auth);
 
     const voteCounter = _ => {
         return post.votes.l.length - post.votes.d.length;
     }
+
+    const userVote = type => {
+        if (!user.id) {
+            return null;
+        }
+        if ('up' === type) {
+            return post.votes.l.includes(user.id) ? '#32cd32' : null;
+        }
+        return post.votes.d.includes(user.id) ? '#e01b1b' : null;
+    }
+
+    const upVote = _ => {
+        if (!user.id) {
+            return;
+        }
+        setPostUpdate({
+            id: post.id,
+            type: 'up_vote',
+        });
+        dispatchPosts({
+            type: A.UP_VOTE_POST,
+            payload: { user, post }
+        });
+    }
+
+    const downVote = _ => {
+        if (!user.id) {
+            return;
+        }
+        setPostUpdate({
+            id: post.id,
+            type: 'down_vote',
+        });
+        dispatchPosts({
+            type: A.DOWN_VOTE_POST,
+            payload: { user, post }
+        });
+    }
+
+    const getComments = _ => {
+        getPostCommentsFromServer(post.id);
+    }
+
 
     return (
         <li className="posts-list__post">
@@ -19,10 +70,15 @@ export default function PostInList({ post }) {
             <div className="posts-list__post__content">
                 {post.content}
             </div>
-            <div className="posts-list__post__counter">
-                <div className="up">⇧</div>
-                <div className="count">{voteCounter()}</div>
-                <div className="down">⇩</div>
+            <div className="posts-list__post__bottom">
+                <div className="posts-list__post__bottom__counter">
+                    <div className="up" onClick={upVote} style={{ color: userVote('up') }}>▲</div>
+                    <div className="count">{voteCounter()}</div>
+                    <div className="down" onClick={downVote} style={{ color: userVote('down') }}>▼</div>
+                </div>
+                <div className="posts-list__post__bottom__show-comments">
+                    <span onClick={getComments}>Show comments</span>
+                </div>
             </div>
         </li>
     );

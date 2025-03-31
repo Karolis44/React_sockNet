@@ -80,6 +80,17 @@ app.use((req, res, next) => {
                 id: result[0].id
             }
         }
+
+        const regex = /^\/admin\//;
+        const find = req.path.search(regex);
+        if (-1 !== find) {
+            if ('admin' !== result[0].role) {
+                error401(res, 'Please login as Admin.');
+                return;
+            }
+        }
+
+        
         next();
     });
 });
@@ -283,10 +294,15 @@ app.get('/comments/for-post/:id', (req, res) => {
     const postID = req.params.id;
 
     const sql = `
-        SELECT *
-        FROM comments
-        WHERE post_id = ?
+        SELECT c.id, c.created_at, c.content, u.name, u.id AS userID
+        FROM comments AS c
+        INNER JOIN users AS u
+        ON c.user_id = u.id
+        WHERE c.post_id = ?
+        ORDER BY c.id DESC
     `;
+
+
 
     con.query(sql, [postID], (err, result) => {
         if (err) return error500(res, err);
@@ -297,6 +313,89 @@ app.get('/comments/for-post/:id', (req, res) => {
         });
 
     });
+
+});
+
+app.post('/comments/create/:id', (req, res) => {
+
+    if (!req.user.id) {
+        error401(res, 'Please login first.');
+        return;
+    }
+
+    const postID = req.params.id;
+    const userID = req.user.id;
+    const content = req.body.content; // maybe validate
+
+    const sql = `
+        INSERT INTO comments
+        (post_id, user_id, content)
+        VALUES (?, ?, ?)
+    `;
+
+    con.query(sql, [postID, userID, content], (err, result) => {
+        if (err) return error500(res, err);
+
+        res.json({
+            success: true,
+            id: result.insertId
+        });
+
+    });
+
+
+});
+
+
+app.post('/comments/delete/:id', (req, res) => {
+
+    if (!req.user.id) {
+        error401(res, 'Please login first.');
+        return;
+    }
+
+    const commentID = req.params.id;
+    const userID = req.user.id;
+
+    const sql = `
+        DELETE FROM comments
+        WHERE id = ? AND user_id = ?
+    `;
+
+    con.query(sql, [commentID, userID], (err, result) => {
+        if (err) return error500(res, err);
+
+        res.json({
+            success: !!result.affectedRows
+        });
+
+    });
+
+
+});
+
+
+// BACK OFFICE/***** */
+
+
+app.post('/admin/comments/delete/:id', (req, res) => {
+
+    const commentID = req.params.id;
+
+    const sql = `
+        DELETE FROM comments
+        WHERE id = ?
+    `;
+
+    con.query(sql, [commentID], (err, result) => {
+        if (err) return error500(res, err);
+
+        res.json({
+            success: !!result.affectedRows
+        });
+
+    });
+
 
 });
 

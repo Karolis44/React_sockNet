@@ -90,7 +90,7 @@ const saveImageAsFile = imageBase64String => {
 app.use((req, res, next) => {
     const token = req.cookies['sock-net-token'] || 'no-token';
     const sql = `
-        SELECT u.id, u.role, u.name
+        SELECT u.id, u.role, u.name, u.avatar
         FROM sessions AS s
         INNER JOIN users AS u
         ON s.user_id = u.id
@@ -103,13 +103,15 @@ app.use((req, res, next) => {
             req.user = {
                 role: 'guest',
                 name: 'Guest',
-                id: 0
+                id: 0,
+                avatar: null
             }
         } else {
             req.user = {
                 role: result[0].role,
                 name: result[0].name,
-                id: result[0].id
+                id: result[0].id,
+                avatar: result[0].avatar
             }
         }
 
@@ -156,7 +158,8 @@ app.post('/login', (req, res) => {
                 user: {
                     role: result[0].role,
                     name: result[0].name,
-                    id: result[0].id
+                    id: result[0].id,
+                    avatar: result[0].avatar
                 }
             });
         });
@@ -188,7 +191,8 @@ app.post('/logout', (req, res) => {
                 user: {
                     role: 'guest',
                     name: 'Guest',
-                    id: 0
+                    id: 0,
+                    avatar: null
                 }
             });
         });
@@ -263,51 +267,57 @@ app.get('/posts/load-posts/:page', (req, res) => {
 
 app.post('/posts/new', (req, res) => {
 
-    const content = req.body.text;
-    const created_at = new Date();
-    const updated_at = new Date();
-    const votes = JSON.stringify({ l: [], d: [] });
-    const user_id = req.user.id;
+    setTimeout(_ => {
 
-    const sql1 = `
+        const content = req.body.text;
+        const created_at = new Date();
+        const updated_at = new Date();
+        const votes = JSON.stringify({ l: [], d: [] });
+        const user_id = req.user.id;
+        const uuid = req.body.uuid;
+
+        const sql1 = `
         INSERT INTO posts
         (content, created_at, updated_at, votes, user_id)
         VALUES (?, ?, ?, ?, ?)
     `;
-    con.query(sql1, [content, created_at, updated_at, votes, user_id], (err, result) => {
-        if (err) return error500(res, err);
-        const postID = result.insertId;
+        con.query(sql1, [content, created_at, updated_at, votes, user_id], (err, result) => {
+            if (err) return error500(res, err);
+            const postID = result.insertId;
 
-        const dbImages = [];
+            const dbImages = [];
 
-        req.body.images.forEach(img => {
-            const fileName = saveImageAsFile(img.src);
-            const dbImage = {
-                url: fileName,
-                post_id: postID,
-                main: img.main ? 1 : 0
-            }
-            dbImages.push(dbImage);
-        });
+            req.body.images.forEach(img => {
+                const fileName = saveImageAsFile(img.src);
+                const dbImage = {
+                    url: fileName,
+                    post_id: postID,
+                    main: img.main ? 1 : 0
+                }
+                dbImages.push(dbImage);
+            });
 
-        const sql2 = `
+            const sql2 = `
             INSERT INTO images
             (url, post_id, main)
             VALUES ?
         `;
-        con.query(sql2, [dbImages.map(i => [i.url, i.post_id, i.main])], (err, result) => {
-            if (err) return error500(res, err);
+            con.query(sql2, [dbImages.map(i => [i.url, i.post_id, i.main])], (err, result) => {
+                if (err) return error500(res, err);
 
-            res.json({
-                id: postID,
-                success: true,
-                msg: {
-                    type: 'success',
-                    text: `You are nice`
-                }
+                res.json({
+                    id: postID,
+                    uuid,
+                    success: true,
+                    msg: {
+                        type: 'success',
+                        text: `You are nice`
+                    }
+                });
             });
         });
-    });
+
+    }, 3000);
 });
 
 
@@ -319,6 +329,12 @@ app.post('/posts/update/:id', (req, res) => {
     }
 
     const postID = parseInt(req.params.id); // postID
+    if (isNaN(postID)) {
+        error400(res, '5788 Invalid Post ID');
+        return;
+    }
+
+
     const { type, payload } = req.body;
 
     const sql1 = 'SELECT * FROM posts WHERE id = ?';
@@ -460,6 +476,41 @@ app.post('/comments/delete/:id', (req, res) => {
 
 });
 
+// CHAT/***** */
+
+app.get('/chat/list', (req, res) => {
+
+    const userID = req.user.id;
+
+    const sql1 = `
+        SELECT DISTINCT from_user_id AS id
+        FROM messages
+        WHERE to_user_id = ?
+    `;
+
+    con.query(sql1, [userID], (err, result1) => {
+        if (err) return error500(res, err);
+
+        const sql2 = `
+            SELECT id, name, avatar, online
+            FROM users
+            WHERE id IN (?)
+        `;
+
+        con.query(sql2, [result1.map(r => r.id)], (err, result2) => {
+            if (err) return error500(res, err);
+
+            res.json({
+                status: 'success',
+                users: result2
+            });
+
+        });
+
+    });
+
+
+});
 
 // BACK OFFICE/***** */
 

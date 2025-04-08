@@ -497,6 +497,7 @@ app.get('/chat/list', (req, res) => {
             WHERE id IN (?)
         `;
 
+
         con.query(sql2, [result1.map(r => r.id)], (err, result2) => {
             if (err) return error500(res, err);
 
@@ -511,6 +512,63 @@ app.get('/chat/list', (req, res) => {
 
 
 });
+
+app.get('/chat/chat-with/:id', (req, res) => {
+
+    const from_user_id = req.params.id;
+    const to_user_id = req.user.id;
+
+    const sql = `
+        SELECT from_user_id AS fromID, to_user_id AS toID, content AS message, created_at AS time, seen, id
+        FROM messages
+        WHERE (from_user_id = ? AND to_user_id = ?) OR (from_user_id = ? AND to_user_id = ?)
+        ORDER BY created_at
+    `;
+
+    con.query(sql, [from_user_id, to_user_id, to_user_id, from_user_id], (err, result) => {
+        if (err) return error500(res, err);
+
+        result = result.map(r => {
+            r.time = new Date(r.time).toLocaleString('lt-LT', {
+                timeZone: 'Europe/Vilnius'
+              });
+              return r;
+        });
+
+        res.json({
+            status: 'success',
+            messages: result
+        });
+
+    });
+
+});
+
+
+app.post('/chat/new-message', (req, res) => {
+
+    const from_user_id = req.user.id;
+    const to_user_id = req.body.userID;
+    const content = req.body.message;
+    const created_at = new Date();
+
+    const sql = `
+        INSERT INTO messages
+        (from_user_id, to_user_id, content, created_at, seen)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+
+    con.query(sql, [from_user_id, to_user_id, content, created_at, 0], (err, result) => {
+        if (err) return error500(res, err);
+
+        res.json({
+            status: 'success'
+        });
+    });
+
+});
+
+
 
 // BACK OFFICE/***** */
 

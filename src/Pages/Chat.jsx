@@ -1,45 +1,34 @@
-import * as A from '../Constants/actions';
+import { createContext, useEffect, useState } from 'react';
+import ChatList from '../Components/Users/ChatList';
+import ChatMessages from '../Components/Users/ChatMessages';
+import useChat from '../Hooks/useChat';
 
-export default function chatReducer(state, action) {
 
-    let newState;
+export const ChatData = createContext();
 
-    switch (action.type) {
+export default function Chat() {
 
-        case A.LOAD_CHAT_USERS:
-            {
-                newState = structuredClone(state);
-                newState || (newState = {});
-                newState.chatList || (newState.chatList = []);
-                newState.chatList.push(...action.payload);
-                break;
-            }
-        case A.LOAD_CHAT_MESSAGES: {
-            {
-                newState = structuredClone(state);
-                newState.messages || (newState.messages = []);
-                const chatID = action.payload.chatWith;
-                const messages = action.payload.messages.map(m => {
-                    const type = chatID === m.fromID ? 'read' : 'write';
-                    return { text: m.message, time: m.time, id: m.id, type };
-                });
+    const { chat, dispatchChat, getChatMessages, postChatMessage } = useChat();
 
-                const chat = newState.messages.find(m => m.id === chatID);
-                if (chat) {
-                    chat.m = messages;
-                } else {
-                    newState.messages.push({id: chatID, m: messages});
-                }
+    const [showChat, setShowChat] = useState(null); // su kuo sneka ID
 
-                console.log('MESSAGES', newState);
-
-                break;
-            }
+    useEffect(_ => {
+        if (null === showChat) {
+            return;
         }
+        getChatMessages(showChat.id);
 
+    }, [showChat]);
 
-        default: newState = state;
-    }
+    return (
+        <ChatData.Provider value={{
+            chat, dispatchChat, showChat, setShowChat, postChatMessage
+        }}>
+            <section className="main">
+                <ChatList />
+                <ChatMessages />
 
-    return newState;
+            </section>
+        </ChatData.Provider>
+    );
 }

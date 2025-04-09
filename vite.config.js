@@ -1,7 +1,7 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { faker } from '@faker-js/faker';
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
+export function createComment() {
+    return {
+        content: faker.word.words({ count: { min: 6, max: 100 } }),
+    };
+}

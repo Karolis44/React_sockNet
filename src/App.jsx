@@ -4,7 +4,7 @@ import Chat from './Pages/Chat';
 import Login from './Pages/Login';
 import Logout from './Pages/Logout';
 import Nav from './Components/Nav';
-import Page404 from './Pages/Page404';
+import Page404 from './Pages/page404';
 import Body from './Components/Body';
 import { DataProvider } from './Contexts/Data';
 import { AuthProvider } from './Contexts/Auth';
